@@ -1,0 +1,24 @@
+{
+  "name": "node-cas",
+  "version": "0.0.1",
+  "description": "A CAS authentication library designed to be used as middleware for an Express server.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kylepixel/cas-authentication.git"
+  },
+  "keywords": [
+    "cas",
+    "authentication",
+    "express"
+  ],
+  "author": "Kyle Maguire <kylepixel@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "xml2js": "^0.4.8"
+  },
+  "devDependencies": {
+    "express": "^4.12.3",
+    "express-session": "^1.11.1"
+  }
+}
