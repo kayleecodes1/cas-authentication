@@ -23,9 +23,29 @@ This is a CAS authentication library designed to be used as middleware for an Ex
   - `session_name` The name of the session variable that will store the CAS user. Default is 'cas_user'.
   - `destroy_session` If true, the logout function will destroy the entire session upon CAS logout. Otherwise, it will only delete the session variable storing the CAS user. Default is false.
 
-## Usage
+## Request Handlers
 
-### Simple
+Each instance of CASAuthentication will provide three Express route handlers, as described below.
+
+### bounce
+
+This handler serves two purposes.
+
+It can be put in front of any route as middleware and it will redirect an unauthenticated user to the CAS login and then back to the page they requested once they are authenticated.
+
+It can also be a route in and of itself. If a bounce route is provided with a `returnTo` query parameter (URL encoded), it will save that parameter in the client's session and redirect there once authentication is complete.
+
+### block
+
+This handler can be put in front of any route as middleware and works the same as `bounce`. The difference is that if the user is not already authenticated with CAS they will not be directed to the CAS login but will instead receive a 401 Unauthorized response.
+
+A use case for this handler would be to put it in front of API routes so that the API request is delivered a meaningful error code rather than the HTML body of the CAS login page.
+
+### logout
+
+This handler is a route in and of itself. It will de-authenticate the CAS user with the Express server (either by deleting the session variable or the entire session) and redirect to the CAS logout.
+
+## Usage
 
 ```javascript
 var app = require('express')();
@@ -46,16 +66,22 @@ var cas = new CASAuthentication({
 });
 
 // TODO: comment
-app.get( '/app', cas.bounce, function ( req, res ) {} );
+app.get( '/app', cas.bounce, function ( req, res ) {
+    // render application
+});
 
 // TODO: comment
-app.get( '/bounce', cas.bounce, function ( req, res ) {} );
+app.get( '/bounce', cas.bounce );
 
 // TODO: comment
 app.get( '/api', cas.block, function ( req, res ) {
-    res.json( '' );
+    res.json( { success: true } );
 });
 
 // TODO: comment
 app.get( '/logout', cas.logout );
 ```
+
+## Additional Notes
+
+//TODO: req.session['cas_user'] is available
