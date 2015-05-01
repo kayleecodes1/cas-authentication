@@ -9,8 +9,9 @@ var url           = require('url'),
  * @enum {number}
  */
 var AUTH_TYPE = {
-    BOUNCE : 0,
-    BLOCK  : 1
+    BOUNCE          : 0,
+    BOUNCE_REDIRECT : 1,
+    BLOCK           : 2
 };
 
 /**
@@ -20,7 +21,6 @@ var AUTH_TYPE = {
  * @property {string}  cas_url
  * @property {string}  service_url
  * @property {boolean} [renew=false]
- * @property {boolean} [gateway=false]
  * @property {boolean} [is_dev_mode=false]
  * @property {string}  [dev_mode_user='']
  * @property {string}  [session_name='cas_user']
@@ -36,6 +36,12 @@ function CASAuthentication( options ) {
 
     if( !options || typeof options !== 'object' ) {
         throw new Error( 'CAS Authentication was not given a valid configuration object.' );
+    }
+    if( options.cas_url === undefined ) {
+        throw new Error( 'CAS Authentication requires a cas_url parameter.' );
+    }
+    if( options.service_url === undefined ) {
+        throw new Error( 'CAS Authentication requires a service_url parameter.' );
     }
 
     this.cas_version = options.cas_version !== undefined ? options.cas_version : '1.0';
@@ -102,7 +108,6 @@ function CASAuthentication( options ) {
     this.service_url     = options.service_url;
 
     this.renew           = options.renew !== undefined ? !!options.renew : false;
-    this.gateway         = options.gateway !== undefined ? !!options.gateway : false;
 
     this.is_dev_mode     = options.is_dev_mode !== undefined ? !!options.is_dev_mode : false;
     this.dev_mode_user   = options.dev_mode_user !== undefined ? options.dev_mode_user : '';
@@ -112,6 +117,7 @@ function CASAuthentication( options ) {
 
     // Bind the prototype routing methods to this instance of CASAuthentication.
     this.bounce = this.bounce.bind( this );
+    this.bounce_redirect = this.bounce_redirect.bind( this );
     this.block = this.block.bind( this );
     this.logout = this.logout.bind( this );
 }
@@ -125,6 +131,17 @@ CASAuthentication.prototype.bounce = function ( req, res, next ) {
 
     // Handle the request with the bounce authorization type.
     this._handle( req, res, next, AUTH_TYPE.BOUNCE );
+};
+
+/**
+ * Bounces a request with CAS authentication. If the user's session is not
+ * already validated with CAS, their request will be redirected to the CAS
+ * login page.
+ */
+CASAuthentication.prototype.bounce_redirect = function ( req, res, next ) {
+
+    // Handle the request with the bounce authorization type.
+    this._handle( req, res, next, AUTH_TYPE.BOUNCE_REDIRECT );
 };
 
 /**
@@ -142,14 +159,21 @@ CASAuthentication.prototype.block = function ( req, res, next ) {
  */
 CASAuthentication.prototype._handle = function ( req, res, next, authType ) {
 
+    // If dev mode is active, set the CAS user to the specified dev user.
+    if( this.is_dev_mode ) {
+        req.session[ this.session_name ] = this.dev_mode_user;
+    }
+
     // If the session has been validated with CAS, no action is required.
     if( req.session[ this.session_name ] ) {
-        next();
-    }
-    // If dev mode is active, set the CAS user to the specified dev user.
-    else if( this.is_dev_mode && this.dev_mode_user ) {
-        req.session[ this.session_name ] = this.dev_mode_user;
-        next();
+        // If this is a bounce redirect, redirect the authenticated user.
+        if( authType === AUTH_TYPE.BOUNCE_REDIRECT ) {
+            res.redirect( req.session.cas_return_to );
+        }
+        // Otherwise, allow them through to their request.
+        else {
+            next();
+        }
     }
     // If the authentication type is BLOCK, simply send a 401 response.
     else if( authType === AUTH_TYPE.BLOCK ) {
@@ -172,14 +196,13 @@ CASAuthentication.prototype._login = function ( req, res, next ) {
 
     // Save the return URL in the session. If an explicit return URL is set as a
     // query parameter, use that. Otherwise, just use the URL from the request.
-    req.session.cas_return_to = req.query.returnTo || url.parse( req.url ).pathname;
+    req.session.cas_return_to = req.query.returnTo || url.parse( req.url ).path;
 
     // Set up the query parameters.
     var query = {
         service : this.service_url + url.parse( req.url ).pathname
     };
     if( this.renew ) { query.renew = this.renew; }
-    if( this.gateway ) { query.gateway = this.gateway; }
 
     // Redirect to the CAS login.
     res.redirect( this.cas_url + url.format({
@@ -235,10 +258,11 @@ CASAuthentication.prototype._handleTicket = function ( req, res, next ) {
                 if( err ) {
                     console.log( err );
                     res.sendStatus( 401 );
-                    return;
                 }
-                req.session[ this.session_name ] = user;
-                res.redirect( req.session.cas_return_to );
+                else {
+                    req.session[ this.session_name ] = user;
+                    res.redirect( req.session.cas_return_to );
+                }
             }.bind( this ));
         }.bind( this ));
         response.on( 'error', function ( err ) {
