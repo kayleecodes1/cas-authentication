@@ -1,27 +1,50 @@
-# Node.js CAS Authentication
+# Express CAS Authentication
 
-This is a CAS authentication library designed to be used as middleware for an Express server.
+This is a CAS authentication library designed to be used with an Express server.
+
+It provides two middleware functions for controlling access to routes:
+
+- `bounce` Redirects the client to the CAS login page and then back to the requested page.
+- `block` Completely denies access to unauthenticated clients and returns a 401 response.
+
+It also provides two route endpoint functions:
+
+- `bounce_redirect` Acts just like "bounce" but once the client is authenticated they will be redirected to the provided "returnTo" query parameter.
+- `logout` De-authenticates the client with the Express server and then redirect them to the CAS logout page.
 
 ## Installation
 
     npm install cas-authentication
 
-## Options
+## Setup
 
-### Required
+```javascript
+var CASAuthentication = require('cas-authentication');
 
-  - `cas_url` The URL of the CAS server.
-  - `service_url` The URL of the application which is registered with the CAS server as a valid service.
+var cas = new CASAuthentication({
+    cas_url         : 'https://my-cas-host.com/cas',
+    service_url     : 'https://my-service-host.com',
+    cas_version     : '3.0',
+    renew           : false,
+    is_dev_mode     : false,
+    dev_mode_user   : 'my_username'
+    session_name    : 'custom_cas_user',
+    destroy_session : false
+});
+```
 
-### Optional
+### Options
 
-  - `cas_version` The CAS version ('1.0', '2.0', or '3.0'). Default is '1.0'.
-  - `renew` If true, single sign-on will be bypassed. Default is false.
-  - `gateway` If true, CAS will not ask the client for credentials. Default is false.
-  - `is_dev_mode` If true, no CAS authentication will be used and the session CAS user will be set to whatever user is specified as `dev_mode_user`. Default is false.
-  - `dev_mode_user` The CAS user to use if dev mode is active. Default is ''.
-  - `session_name` The name of the session variable that will store the CAS user. Default is 'cas_user'.
-  - `destroy_session` If true, the logout function will destroy the entire session upon CAS logout. Otherwise, it will only delete the session variable storing the CAS user. Default is false.
+| Name | Type | Description | Default |
+|:-----|:----:|:------------|:-------:|
+| cas_url | _string_ | The URL of the CAS server. | _(required)_ |
+| service_url | _string_ | The URL of the application which is registered with the CAS server as a valid service. | _(required)_ |
+| cas_version | _"1.0"\|"2.0\|"3.0"_ | The CAS protocol version. | _"1.0"_ |
+| renew | _boolean_ | If true, the client will be required to login to the CAS system regardless of whether a single sign-on session exists. | _false_ |
+| is_dev_mode | _boolean_ | If true, no CAS authentication will be used and the session CAS variable will be set to whatever user is specified as _dev_mode_user_. | _false_ |
+| dev_mode_user | _string_ | The CAS user to use if dev mode is active. | _""_ |
+| session_name | _string_ | The name of the session variable that will store the CAS user once they are authenticated. | _"cas_user"_ |
+| destroy_session | _boolean_ | If true, the logout function will destroy the entire session upon CAS logout. Otherwise, it will only delete the session variable storing the CAS user. | _false_ |
 
 ## Usage
 
@@ -43,22 +66,14 @@ var cas = new CASAuthentication({
     service_url : 'https://my-service-host.com'
 });
 
-// If the user is not authenticated yet, redirect them to the CAS login. It will
-// redirect back to "/app" once they are authenticated and they will be allowed
-// through.
+// Unauthenticated clients will be redirected to the CAS login and then back to
+// this route once authenticated.
 app.get( '/app', cas.bounce, function ( req, res ) {
-    // Can access req.session['cas_user'] here.
+    res.send( '<html><body>Hello!</body></html>' );
 });
 
-// This route requires a "redirectTo" query parameter (i.e.
-// "/bounce?returnTo=<url-encoded-path>"). It will do the same as the "/app"
-// route but instead of redirecting back to "/bounce", they will be redirected
-// to the supplied "redirectTo" parameter.
-app.get( '/bounce', cas.bounce );
-
-// If an unauthenticated user visits this route, they will simply receive a 401
-// Unauthorized response. They will not be redirected to a login. If they are
-// already authenticated, they will be allowed through.
+// Unauthenticated clients will receive a 401 Unauthorized response instead of
+// the JSON data.
 app.get( '/api', cas.block, function ( req, res ) {
     res.json( { success: true } );
 });
@@ -66,11 +81,14 @@ app.get( '/api', cas.block, function ( req, res ) {
 // An example of accessing the CAS user session variable. This could be used to
 // retrieve your own local user records based on authenticated CAS username.
 app.get( '/api/user', cas.block, function ( req, res ) {
-    res.json( { cas_user: req.session['cas_user'] } );
+    res.json( { cas_user: req.session[ 'cas_user' ] } );
 });
 
-// This route will de-authenticate the user with the Express server (either by
-// deleting the session variable or the entire session) and redirect the user
-// to the CAS logout page.
+// Unauthenticated clients will be redirected to the CAS login and then to the
+// provided "redirectTo" query parameter once authenticated.
+app.get( '/authenticate', cas.bounce_redirect );
+
+// This route will de-authenticate the client with the Express server and then
+// redirect the client to the CAS logout page.
 app.get( '/logout', cas.logout );
 ```
