@@ -4,13 +4,13 @@ This is a CAS authentication library designed to be used with an Express server.
 
 It provides two middleware functions for controlling access to routes:
 
-- `bounce` Redirects the client to the CAS login page and then back to the requested page.
-- `block` Completely denies access to unauthenticated clients and returns a 401 response.
+- `bounce`: Redirects an unauthenticated client to the CAS login page and then back to the requested page.
+- `block`: Completely denies access to an unauthenticated client and returns a 401 response.
 
 It also provides two route endpoint functions:
 
-- `bounce_redirect` Acts just like "bounce" but once the client is authenticated they will be redirected to the provided "returnTo" query parameter.
-- `logout` De-authenticates the client with the Express server and then redirect them to the CAS logout page.
+- `bounce_redirect`: Acts just like `bounce` but once the client is authenticated they will be redirected to the provided _returnTo_ query parameter.
+- `logout`: De-authenticates the client with the Express server and then redirects them to the CAS logout page.
 
 ## Installation
 
@@ -40,7 +40,7 @@ var cas = new CASAuthentication({
 | cas_url | _string_ | The URL of the CAS server. | _(required)_ |
 | service_url | _string_ | The URL of the application which is registered with the CAS server as a valid service. | _(required)_ |
 | cas_version | _"1.0"\|"2.0\|"3.0"_ | The CAS protocol version. | _"3.0"_ |
-| renew | _boolean_ | If true, the client will be required to login to the CAS system regardless of whether a single sign-on session exists. | _false_ |
+| renew | _boolean_ | If true, an unauthenticated client will be required to login to the CAS system regardless of whether a single sign-on session exists. | _false_ |
 | is_dev_mode | _boolean_ | If true, no CAS authentication will be used and the session CAS variable will be set to whatever user is specified as _dev_mode_user_. | _false_ |
 | dev_mode_user | _string_ | The CAS user to use if dev mode is active. | _""_ |
 | session_name | _string_ | The name of the session variable that will store the CAS user once they are authenticated. | _"cas_user"_ |
