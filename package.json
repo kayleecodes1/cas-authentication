@@ -4,7 +4,11 @@
   "description": "A CAS authentication library designed to be used as middleware for an Express server.",
   "keywords": [
     "cas",
+    "central authentication service",
+    "auth",
     "authentication",
+    "login",
+    "middleware",
     "express"
   ],
   "homepage": "https://github.com/kylepixel/cas-authentication",
