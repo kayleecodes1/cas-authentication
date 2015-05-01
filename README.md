@@ -81,7 +81,7 @@ app.get( '/api', cas.block, function ( req, res ) {
 // An example of accessing the CAS user session variable. This could be used to
 // retrieve your own local user records based on authenticated CAS username.
 app.get( '/api/user', cas.block, function ( req, res ) {
-    res.json( { cas_user: req.session[ 'cas_user' ] } );
+    res.json( { cas_user: req.session[ cas.session_name ] } );
 });
 
 // Unauthenticated clients will be redirected to the CAS login and then to the
