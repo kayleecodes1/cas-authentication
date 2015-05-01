@@ -17,9 +17,9 @@ var AUTH_TYPE = {
 /**
  * ...
  * @typedef {Object} CAS_options
- * @property {('1.0'|'2.0'|'3.0')} [cas_version='1.0']
  * @property {string}  cas_url
  * @property {string}  service_url
+ * @property {('1.0'|'2.0'|'3.0')} [cas_version='3.0']
  * @property {boolean} [renew=false]
  * @property {boolean} [is_dev_mode=false]
  * @property {string}  [dev_mode_user='']
@@ -44,7 +44,7 @@ function CASAuthentication( options ) {
         throw new Error( 'CAS Authentication requires a service_url parameter.' );
     }
 
-    this.cas_version = options.cas_version !== undefined ? options.cas_version : '1.0';
+    this.cas_version = options.cas_version !== undefined ? options.cas_version : '3.0';
 
     if( this.cas_version === '1.0' ) {
         this._validateUri = '/validate';
