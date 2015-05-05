@@ -173,6 +173,7 @@ CASAuthentication.prototype._handle = function ( req, res, next, authType ) {
     // If dev mode is active, set the CAS user to the specified dev user.
     else if( this.is_dev_mode ) {
         req.session[ this.session_name ] = this.dev_mode_user;
+        next();
     }
     // If the authentication type is BLOCK, simply send a 401 response.
     else if( authType === AUTH_TYPE.BLOCK ) {
