@@ -29,6 +29,7 @@ var cas = new CASAuthentication({
     is_dev_mode     : false,
     dev_mode_user   : ''
     session_name    : 'cas_user',
+    session_info    : 'cas_userinfo',
     destroy_session : false
 });
 ```
@@ -44,6 +45,7 @@ var cas = new CASAuthentication({
 | is_dev_mode | _boolean_ | If true, no CAS authentication will be used and the session CAS variable will be set to whatever user is specified as _dev_mode_user_. | _false_ |
 | dev_mode_user | _string_ | The CAS user to use if dev mode is active. | _""_ |
 | session_name | _string_ | The name of the session variable that will store the CAS user once they are authenticated. | _"cas_user"_ |
+| session_info | _string_ | The name of the session variable that will store the CAS user information once they are authenticated. If set to false (or something that evaluates as false), the additional information supplied by the CAS will not be forwarded. | _false_ |
 | destroy_session | _boolean_ | If true, the logout function will destroy the entire session upon CAS logout. Otherwise, it will only delete the session variable storing the CAS user. | _false_ |
 
 ## Usage
