@@ -271,7 +271,6 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
                     }
                     res.redirect(req.session.cas_return_to);
                 }
-                console.log(req.session);
             }.bind(this));
         }.bind(this));
         response.on('error', function(err) {
