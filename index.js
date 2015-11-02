@@ -15,7 +15,6 @@ var AUTH_TYPE = {
 };
 
 /**
- * ...
  * @typedef {Object} CAS_options
  * @property {string}  cas_url
  * @property {string}  service_url
@@ -29,7 +28,6 @@ var AUTH_TYPE = {
  */
 
 /**
- * ...
  * @param {CAS_options} options
  * @constructor
  */
@@ -229,7 +227,9 @@ CASAuthentication.prototype.logout = function(req, res, next) {
     // Otherwise, just destroy the CAS session variables.
     else {
         delete req.session[ this.session_name ];
-        delete req.session[ this.session_info ];
+        if (this.session_info) {
+          delete req.session[ this.session_info ];
+        }
     }
 
     // Redirect the client to the CAS logout.
