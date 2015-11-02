@@ -24,6 +24,7 @@ var AUTH_TYPE = {
  * @property {boolean} [is_dev_mode=false]
  * @property {string}  [dev_mode_user='']
  * @property {string}  [session_name='cas_user']
+ * @property {string}  [session_info='cas_userinfo']
  * @property {boolean} [destroy_session=false]
  */
 
@@ -113,6 +114,7 @@ function CASAuthentication( options ) {
     this.dev_mode_user   = options.dev_mode_user !== undefined ? options.dev_mode_user : '';
 
     this.session_name    = options.session_name !== undefined ? options.session_name : 'cas_user';
+    this.session_info    = options.session_info !== undefined ? options.session_info : false;
     this.destroy_session = options.destroy_session !== undefined ? !!options.destroy_session : false;
 
     // Bind the prototype routing methods to this instance of CASAuthentication.
@@ -225,6 +227,9 @@ CASAuthentication.prototype.logout = function ( req, res, next ) {
     // Otherwise, just destroy the CAS session variable.
     else {
         delete req.session[ this.session_name ];
+        if (this.session_info) {
+          delete req.session[ this.session_info ];
+        }
     }
 
     // Redirect the client to the CAS logout.
@@ -254,13 +259,16 @@ CASAuthentication.prototype._handleTicket = function ( req, res, next ) {
             return body += chunk;
         }.bind( this ));
         response.on( 'end', function () {
-            this._validate( body, function ( err, user ) {
+            this._validate( body, function ( err, bodyObj ) {
                 if( err ) {
                     console.log( err );
                     res.sendStatus( 401 );
                 }
                 else {
-                    req.session[ this.session_name ] = user;
+                    req.session[ this.session_name ] = bodyObj.user;
+                    if (this.session_info) {
+                      req.session[ this.session_info ] = bodyObj.attributes;
+                    }
                     res.redirect( req.session.cas_return_to );
                 }
             }.bind( this ));
