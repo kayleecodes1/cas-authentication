@@ -1,10 +1,11 @@
 {
   "name": "cas-authentication",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A CAS authentication library designed to be used as middleware for an Express server.",
   "keywords": [
     "cas",
     "central authentication service",
+    "saml",
     "auth",
     "authentication",
     "login",
