@@ -302,20 +302,19 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
         });
     } else if (this.cas_version === 'saml1.1'){
         var now = new Date();
-        var post_data = 
-'<?xml version="1.0" encoding="utf-8"?>\n' +
-'<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">\n' +
-'  <SOAP-ENV:Header/>\n' +
-'  <SOAP-ENV:Body>\n' +
-'    <samlp:Request xmlns:samlp="urn:oasis:names:tc:SAML:1.0:protocol" MajorVersion="1"\n' +
-'      MinorVersion="1" RequestID="_' + req.host + '.' + now.getTime() + '"\n' +
-'      IssueInstant="' + now.toISOString() + '">\n' +
-'      <samlp:AssertionArtifact>\n' +
-'        ' + req.query.ticket + '\n' +
-'      </samlp:AssertionArtifact>\n' +
-'    </samlp:Request>\n' +
-'  </SOAP-ENV:Body>\n' +
-'</SOAP-ENV:Envelope>';
+        var post_data = '<?xml version="1.0" encoding="utf-8"?>\n' +
+                        '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">\n' +
+                        '  <SOAP-ENV:Header/>\n' +
+                        '  <SOAP-ENV:Body>\n' +
+                        '    <samlp:Request xmlns:samlp="urn:oasis:names:tc:SAML:1.0:protocol" MajorVersion="1"\n' +
+                        '      MinorVersion="1" RequestID="_' + req.host + '.' + now.getTime() + '"\n' +
+                        '      IssueInstant="' + now.toISOString() + '">\n' +
+                        '      <samlp:AssertionArtifact>\n' +
+                        '        ' + req.query.ticket + '\n' +
+                        '      </samlp:AssertionArtifact>\n' +
+                        '    </samlp:Request>\n' +
+                        '  </SOAP-ENV:Body>\n' +
+                        '</SOAP-ENV:Envelope>';
 
         requestOptions.method = 'POST';
         requestOptions.path = url.format({
