@@ -40,7 +40,7 @@ var cas = new CASAuthentication({
 |:-----|:----:|:------------|:-------:|
 | cas_url | _string_ | The URL of the CAS server. | _(required)_ |
 | service_url | _string_ | The URL of the application which is registered with the CAS server as a valid service. | _(required)_ |
-| cas_version | _"1.0"\|"2.0\|"3.0"_ | The CAS protocol version. | _"3.0"_ |
+| cas_version | _"1.0"\|"2.0\|"3.0"\|"saml1.1"_ | The CAS protocol version. | _"3.0"_ |
 | renew | _boolean_ | If true, an unauthenticated client will be required to login to the CAS system regardless of whether a single sign-on session exists. | _false_ |
 | is_dev_mode | _boolean_ | If true, no CAS authentication will be used and the session CAS variable will be set to whatever user is specified as _dev_mode_user_. | _false_ |
 | dev_mode_user | _string_ | The CAS user to use if dev mode is active. | _""_ |
