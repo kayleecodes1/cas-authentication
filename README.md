@@ -44,6 +44,7 @@ var cas = new CASAuthentication({
 | renew | _boolean_ | If true, an unauthenticated client will be required to login to the CAS system regardless of whether a single sign-on session exists. | _false_ |
 | is_dev_mode | _boolean_ | If true, no CAS authentication will be used and the session CAS variable will be set to whatever user is specified as _dev_mode_user_. | _false_ |
 | dev_mode_user | _string_ | The CAS user to use if dev mode is active. | _""_ |
+| dev_mode_info | _string_ | The CAS user information to use if dev mode is active. | _{}_ |
 | session_name | _string_ | The name of the session variable that will store the CAS user once they are authenticated. | _"cas_user"_ |
 | session_info | _string_ | The name of the session variable that will store the CAS user information once they are authenticated. If set to false (or something that evaluates as false), the additional information supplied by the CAS will not be forwarded. This will not work with CAS 1.0, as it does not support additional user information. | _false_ |
 | destroy_session | _boolean_ | If true, the logout function will destroy the entire session upon CAS logout. Otherwise, it will only delete the session variable storing the CAS user. | _false_ |

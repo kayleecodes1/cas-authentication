@@ -22,6 +22,7 @@ var AUTH_TYPE = {
  * @property {boolean} [renew=false]
  * @property {boolean} [is_dev_mode=false]
  * @property {string}  [dev_mode_user='']
+ * @property {Object}  [dev_mode_info={}]
  * @property {string}  [session_name='cas_user']
  * @property {string}  [session_info=false]
  * @property {boolean} [destroy_session=false]
@@ -101,34 +102,35 @@ function CASAuthentication(options) {
                 explicitArray: false,
                 tagNameProcessors: [ XMLprocessors.normalize, XMLprocessors.stripPrefix ]
             }, function(err, result) {
-                if(err) {
+                if (err) {
                     return callback(new Error('Response from CAS server was bad.'));
                 }
                 try {
                     var samlResponse = result.envelope.body.response;
-                    var success = samlResponse.status.statuscode.$.Value.split(':')[1];
-                    if(success !== 'Success'){
-                        return callback(new Error('CAS authentication failed (' + result.status.statuscode.$.Value + ').'));
-                    }
-                    if(success === 'Success'){
-                        var attributes = {};
-
-                        samlResponse.assertion.attributestatement.attribute.forEach(function( attr ){
-                            var thisAttrValue;
-                            if(attr.attributevalue instanceof Array){
-                                thisAttrValue = [];
-                                attr.attributevalue.forEach(function( v ) {
-                                    thisAttrValue.push(v._);
-                                });
-                            } else {
-                                thisAttrValue = attr.attributevalue._;
-                            }
-                            attributes[attr.$.AttributeName] = thisAttrValue;
-                        });
-                        return callback(null, samlResponse.assertion.authenticationstatement.subject.nameidentifier, attributes);
+                    var success = samlResponse.status.statuscode.$.Value.split(':')[ 1 ];
+                    if (success !== 'Success') {
+                        return callback(new Error('CAS authentication failed (' + success + ').'));
                     }
                     else {
-                        return callback(new Error( 'CAS authentication failed.'));
+                        var attributes = {};
+                        var attributesArray = samlResponse.assertion.attributestatement.attribute;
+                        if (!(attributesArray instanceof Array)) {
+                            attributesArray = [ attributesArray ];
+                        }
+                        attributesArray.forEach(function(attr){
+                            var thisAttrValue;
+                            if (attr.attributevalue instanceof Array){
+                                thisAttrValue = [];
+                                attr.attributevalue.forEach(function(v) {
+                                    thisAttrValue.push(v._);
+                                });
+                            }
+                            else {
+                                thisAttrValue = attr.attributevalue._;
+                            }
+                            attributes[ attr.$.AttributeName ] = thisAttrValue;
+                        });
+                        return callback(null, samlResponse.assertion.authenticationstatement.subject.nameidentifier, attributes);
                     }
                 }
                 catch (err) {
@@ -155,9 +157,10 @@ function CASAuthentication(options) {
 
     this.is_dev_mode     = options.is_dev_mode !== undefined ? !!options.is_dev_mode : false;
     this.dev_mode_user   = options.dev_mode_user !== undefined ? options.dev_mode_user : '';
+    this.dev_mode_info   = options.dev_mode_info !== undefined ? options.dev_mode_info : {};
 
     this.session_name    = options.session_name !== undefined ? options.session_name : 'cas_user';
-    this.session_info    = ['2.0', '3.0', 'saml1.1'].indexOf(this.cas_version) >= 0 && options.session_info !== undefined ? options.session_info : false ;
+    this.session_info    = [ '2.0', '3.0', 'saml1.1' ].indexOf(this.cas_version) >= 0 && options.session_info !== undefined ? options.session_info : false;
     this.destroy_session = options.destroy_session !== undefined ? !!options.destroy_session : false;
 
     // Bind the prototype routing methods to this instance of CASAuthentication.
@@ -218,6 +221,7 @@ CASAuthentication.prototype._handle = function(req, res, next, authType) {
     // If dev mode is active, set the CAS user to the specified dev user.
     else if (this.is_dev_mode) {
         req.session[ this.session_name ] = this.dev_mode_user;
+        req.session[ this.session_info ] = this.dev_mode_info;
         next();
     }
     // If the authentication type is BLOCK, simply send a 401 response.
@@ -289,7 +293,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
     var requestOptions = {
         host: this.cas_host,
         port: this.cas_port,
-    }
+    };
 
     if (['1.0', '2.0', '3.0'].indexOf(this.cas_version) >= 0){
         requestOptions.method = 'GET';
@@ -300,7 +304,8 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
                 ticket: req.query.ticket
             }
         });
-    } else if (this.cas_version === 'saml1.1'){
+    }
+    else if (this.cas_version === 'saml1.1'){
         var now = new Date();
         var post_data = '<?xml version="1.0" encoding="utf-8"?>\n' +
                         '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">\n' +
@@ -325,9 +330,9 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
             }
         });
         requestOptions.headers = {
-            'Content-Type' : 'text/xml',
+            'Content-Type': 'text/xml',
             'Content-Length': Buffer.byteLength(post_data)
-        }
+        };
     }
 
     var request = this.request_client.request(requestOptions, function(response) {
