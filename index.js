@@ -16,6 +16,7 @@ var AUTH_TYPE = {
 
 /**
  * @typedef {Object} CAS_options
+ * @property {string}  ca                  - Request Options ca (https://nodejs.org/api/https.html)
  * @property {string}  cas_url
  * @property {string}  service_url
  * @property {('1.0'|'2.0'|'3.0'|'saml1.1')} [cas_version='3.0']
@@ -144,6 +145,7 @@ function CASAuthentication(options) {
         throw new Error('The supplied CAS version ("' + this.cas_version + '") is not supported.');
     }
 
+    this.ca  			 = options.ca;
     this.cas_url         = options.cas_url;
     var parsed_cas_url   = url.parse(this.cas_url);
     this.request_client  = parsed_cas_url.protocol === 'http:' ? http : https;
@@ -293,6 +295,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
     var requestOptions = {
         host: this.cas_host,
         port: this.cas_port,
+        ca: this.ca
     };
 
     if (['1.0', '2.0', '3.0'].indexOf(this.cas_version) >= 0){
