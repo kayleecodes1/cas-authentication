@@ -49,7 +49,7 @@ var cas = new CASAuthentication({
 | session_name | _string_ | The name of the session variable that will store the CAS user once they are authenticated. | _"cas_user"_ |
 | session_info | _string_ | The name of the session variable that will store the CAS user information once they are authenticated. If set to false (or something that evaluates as false), the additional information supplied by the CAS will not be forwarded. This will not work with CAS 1.0, as it does not support additional user information. | _false_ |
 | destroy_session | _boolean_ | If true, the logout function will destroy the entire session upon CAS logout. Otherwise, it will only delete the session variable storing the CAS user. | _false_ |
-
+| additionnals_request_options | _Object_ | Additionnals request options used to call CAS services. See [node.js documentation](https://nodejs.org/dist/latest-v7.x/docs/api/http.html#http_http_request_options_callback) for details | {}
 ## Usage
 
 ```javascript
