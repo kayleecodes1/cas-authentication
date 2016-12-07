@@ -129,7 +129,7 @@ function CASAuthentication(options) {
                                 });
                             }
                             else {
-                                thisAttrValue = attr.attributevalue._;
+                                thisAttrValue = attr.attributevalue;
                             }
                             attributes[ attr.$.AttributeName ] = thisAttrValue;
                         });
