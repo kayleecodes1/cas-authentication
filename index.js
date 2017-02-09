@@ -2,7 +2,8 @@ var url           = require('url'),
     http          = require('http'),
     https         = require('https'),
     parseXML      = require('xml2js').parseString,
-    XMLprocessors = require('xml2js/lib/processors');
+    XMLprocessors = require('xml2js/lib/processors'),
+		objectAssign = require('object-assign');
 
 /**
  * The CAS authentication types.
@@ -26,6 +27,7 @@ var AUTH_TYPE = {
  * @property {string}  [session_name='cas_user']
  * @property {string}  [session_info=false]
  * @property {boolean} [destroy_session=false]
+ * @property {object} [additionnals_request_options]
  */
 
 /**
@@ -45,6 +47,7 @@ function CASAuthentication(options) {
     }
 
     this.cas_version = options.cas_version !== undefined ? options.cas_version : '3.0';
+		this.additionnals_request_options = options.additionnals_request_options || {};
 
     if (this.cas_version === '1.0') {
         this._validateUri = '/validate';
@@ -126,7 +129,7 @@ function CASAuthentication(options) {
                                 });
                             }
                             else {
-                                thisAttrValue = attr.attributevalue._;
+                                thisAttrValue = attr.attributevalue;
                             }
                             attributes[ attr.$.AttributeName ] = thisAttrValue;
                         });
@@ -249,9 +252,12 @@ CASAuthentication.prototype._login = function(req, res, next) {
 
     // Set up the query parameters.
     var query = {
-        service: this.service_url + url.parse(req.url).pathname,
-        renew: this.renew
+        service: this.service_url + url.parse(req.url).pathname
     };
+    // add renew param only if is set to true
+    if (this.renew) {
+			query.renew= this.renew
+		}
 
     // Redirect to the CAS login.
     res.redirect( this.cas_url + url.format({
@@ -335,7 +341,8 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
         };
     }
 
-    var request = this.request_client.request(requestOptions, function(response) {
+    var mergedRequestOptions = objectAssign({}, requestOptions, this.additionnals_request_options);
+    var request = this.request_client.request(mergedRequestOptions, function(response) {
         response.setEncoding( 'utf8' );
         var body = '';
         response.on( 'data', function(chunk) {
