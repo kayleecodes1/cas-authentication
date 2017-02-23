@@ -153,7 +153,8 @@ function CASAuthentication(options) {
 
     this.service_url     = options.service_url;
 
-    this.renew           = options.renew !== undefined ? !!options.renew : false;
+//    this.renew           = options.renew !== undefined ? !!options.renew : false;
+	this.renew           = options.renew === true ? true : false;
 
     this.is_dev_mode     = options.is_dev_mode !== undefined ? !!options.is_dev_mode : false;
     this.dev_mode_user   = options.dev_mode_user !== undefined ? options.dev_mode_user : '';
