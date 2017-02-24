@@ -1,7 +1,13 @@
 {
   "name": "cas-authentication",
   "version": "0.0.8",
-  "description": "A CAS authentication library designed to be used as middleware for an Express server.",
+  "description": "A CAS authentication library to be used as middleware for an Express server.",
+  "scripts": {
+    "clean": "rimraf ./dist",
+    "compile": "npm run clean && babel src/ --out-dir dist/",
+    "test": "npm run compile && mocha --compilers js:babel-register --require babel-polyfill --recursive test/",
+    "prepublish": "npm run test"
+  },
   "keywords": [
     "cas",
     "central authentication service",
@@ -18,16 +24,28 @@
   },
   "license": "MIT",
   "author": "Kyle Maguire <kylepixel@gmail.com>",
-  "main": "index.js",
+  "main": "dist/index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/kylepixel/cas-authentication.git"
   },
   "dependencies": {
+    "babel-polyfill": "^6.22.0",
+    "deep-property": "^1.1.0",
+    "url-join": "^1.1.0",
     "xml2js": "^0.4.8"
   },
   "devDependencies": {
-    "express": "^4.12.3",
-    "express-session": "^1.11.1"
+    "babel-cli": "^6.22.2",
+    "babel-plugin-transform-builtin-extend": "^1.1.0",
+    "babel-preset-es2015": "^6.22.0",
+    "babel-register": "^6.22.0",
+    "chai": "^3.5.0",
+    "chai-as-promised": "^6.0.0",
+    "mocha": "^3.2.0",
+    "nock": "^9.0.4",
+    "rimraf": "^2.5.4",
+    "sinon": "^1.17.7",
+    "sinon-chai": "^2.8.0"
   }
 }
