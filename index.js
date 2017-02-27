@@ -246,7 +246,7 @@ CASAuthentication.prototype._login = function(req, res, next) {
 
     // Save the return URL in the session. If an explicit return URL is set as a
     // query parameter, use that. Otherwise, just use the URL from the request.
-    req.session.cas_return_to = req.query.returnTo || url.parse(req.url).path;
+    req.session.cas_return_to = req.query.returnTo || url.parse(req.url).pathname;
 
     // Set up the query parameters.
     var query = {
@@ -313,7 +313,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
                         '  <SOAP-ENV:Header/>\n' +
                         '  <SOAP-ENV:Body>\n' +
                         '    <samlp:Request xmlns:samlp="urn:oasis:names:tc:SAML:1.0:protocol" MajorVersion="1"\n' +
-                        '      MinorVersion="1" RequestID="_' + req.host + '.' + now.getTime() + '"\n' +
+                        '      MinorVersion="1" RequestID="_' + req.hostname + '.' + now.getTime() + '"\n' +
                         '      IssueInstant="' + now.toISOString() + '">\n' +
                         '      <samlp:AssertionArtifact>\n' +
                         '        ' + req.query.ticket + '\n' +
