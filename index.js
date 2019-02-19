@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 var url           = require('url'),
     http          = require('http'),
     https         = require('https'),
@@ -314,9 +316,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
                         '    <samlp:Request xmlns:samlp="urn:oasis:names:tc:SAML:1.0:protocol" MajorVersion="1"\n' +
                         '      MinorVersion="1" RequestID="_' + req.host + '.' + now.getTime() + '"\n' +
                         '      IssueInstant="' + now.toISOString() + '">\n' +
-                        '      <samlp:AssertionArtifact>\n' +
-                        '        ' + req.query.ticket + '\n' +
-                        '      </samlp:AssertionArtifact>\n' +
+                        '      <samlp:AssertionArtifact>' + req.query.ticket + '</samlp:AssertionArtifact>\n' +
                         '    </samlp:Request>\n' +
                         '  </SOAP-ENV:Body>\n' +
                         '</SOAP-ENV:Envelope>';
@@ -325,8 +325,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
         requestOptions.path = url.format({
             pathname: this.cas_path + this._validateUri,
             query : {
-                TARGET : this.service_url + url.parse(req.url).pathname,
-                ticket: ''
+                TARGET : this.service_url + url.parse(req.url).pathname
             }
         });
         requestOptions.headers = {
