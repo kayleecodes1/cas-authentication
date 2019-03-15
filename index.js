@@ -152,6 +152,8 @@ function CASAuthentication(options) {
     this.cas_path        = parsed_cas_url.pathname;
 
     this.service_url     = options.service_url;
+    
+    this.post_logout_redirect = options.post_logout_redirect !== undefined ? options.post_logout_redirect : true;
 
     this.renew           = options.renew !== undefined ? !!options.renew : false;
 
@@ -282,7 +284,11 @@ CASAuthentication.prototype.logout = function(req, res, next) {
     }
 
     // Redirect the client to the CAS logout.
-    res.redirect(this.cas_url + '/logout');
+    var logoutUrl = this.cas_url + '/logout';
+    if(this.post_logout_redirect) {
+        logoutUrl += '?service=' + this.service_url;
+    }        
+    res.redirect(logoutUrl);
 };
 
 /**
