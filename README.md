@@ -1,3 +1,6 @@
+***due to origin owner doesnot update origin repository, i fixed some bug in this project***
+***因为源项目作者不再维护，但是我还要使用，所以开了这个项目进行维护，修复一些bug***
+
 # Express CAS Authentication
 
 This is a CAS authentication library designed to be used with an Express server.
