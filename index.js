@@ -425,7 +425,6 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
                 ticket: req.query.ticket
             }
         });
-
     }
     else if (this.cas_version === 'saml1.1'){
         var now = new Date();

@@ -1,6 +1,7 @@
 {
   "name": "node-cas-authentication",
-  "version": "0.0.13",
+  "version": "0.0.15",
+
   "description": "A CAS authentication library designed to be used as middleware for an Express server.",
   "keywords": [
     "cas",
