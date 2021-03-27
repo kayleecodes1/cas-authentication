@@ -19,6 +19,7 @@ var AUTH_TYPE = {
  * @property {string}  cas_url
  * @property {string}  service_url
  * @property {('1.0'|'2.0'|'3.0'|'saml1.1')} [cas_version='3.0']
+ * @property {number} [cas_port=443]
  * @property {boolean} [renew=false]
  * @property {boolean} [is_dev_mode=false]
  * @property {string}  [dev_mode_user='']
@@ -43,6 +44,8 @@ function CASAuthentication(options) {
     if (options.service_url === undefined) {
         throw new Error( 'CAS Authentication requires a service_url parameter.');
     }
+
+    this.cas_port = options.cas_port ? options.cas_port : 443;
 
     this.cas_version = options.cas_version !== undefined ? options.cas_version : '3.0';
 
@@ -148,10 +151,11 @@ function CASAuthentication(options) {
     var parsed_cas_url   = url.parse(this.cas_url);
     this.request_client  = parsed_cas_url.protocol === 'http:' ? http : https;
     this.cas_host        = parsed_cas_url.hostname;
-    this.cas_port        = parsed_cas_url.protocol === 'http:' ? 80 : 443;
     this.cas_path        = parsed_cas_url.pathname;
+    this.return_to       = options.return_to;
 
     this.service_url     = options.service_url;
+    this.service_url_for_api = options.service_url_for_api;
 
     this.renew           = options.renew !== undefined ? !!options.renew : false;
 
@@ -245,7 +249,7 @@ CASAuthentication.prototype._login = function(req, res, next) {
 
     // Save the return URL in the session. If an explicit return URL is set as a
     // query parameter, use that. Otherwise, just use the URL from the request.
-    req.session.cas_return_to = req.query.returnTo || url.parse(req.url).path;
+    req.session.cas_return_to = req.query.returnTo || this.return_to || url.parse(req.url).path;
 
     // Set up the query parameters.
     var query = {
@@ -260,6 +264,118 @@ CASAuthentication.prototype._login = function(req, res, next) {
     }));
 };
 
+CASAuthentication.prototype._apiLogin = function(req, resp, next) {
+    var querystring = require('querystring');
+    var postData = querystring.stringify({
+        username: encodeURIComponent(req.body.username),
+        password: encodeURIComponent(req.body.password)
+    })
+
+    
+    var requestOptions = {
+        host: this.cas_host,
+        port: this.cas_port,
+        path: this.cas_path+"/v1/tickets",
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          }
+    };
+
+    var req1 = this.request_client.request(requestOptions, (res) => {
+        var result = '';
+        res.on('data', function (chunk) {
+          result += chunk;
+        });
+        res.on('end', () => {
+            if(res.headers.location === undefined) {
+                return resp.json({
+                    ...JSON.parse(result),
+                    success : false
+                })
+            }
+            var arr = res.headers.location.split("/");
+            var tgt = arr[arr.length - 1];
+
+            var postData2 = querystring.stringify({
+                service: this.service_url_for_api,
+            })
+
+            var requestOptions2 = {
+                host: this.cas_host,
+                port: this.cas_port,
+                path: this.cas_path+"/v1/tickets/"+tgt,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            } 
+            var req2 = this.request_client.request(requestOptions2, (res) => {
+                var resultw = '';
+                res.on('data', function (chunk) {
+                    resultw += chunk;
+                });
+
+                res.on('end',  () => {
+                    req.query = {}
+                    req.query.ticket = resultw;
+                    var ss = encodeURI(this.service_url_for_api)
+                    var r3 = this.request_client.request({
+                        host: 'muerp1.mu-sigma.com',
+                        port: 443,
+                        method: 'GET',
+                        path: `/cas/p3/serviceValidate?service=${ss}&ticket=${resultw}&format=json`
+                    }, (res3) => {
+                        var resultf = '';
+                        res3.on('data', function (chunk) {
+                            resultf += chunk;
+                        });
+
+                        res3.on('end',  () => {
+                            resultf = JSON.parse(resultf)
+                            var user;
+                            if(resultf.serviceResponse.authenticationSuccess) {
+                                user = resultf.serviceResponse.authenticationSuccess.user;
+                                req.session[ this.session_name ] = user;
+                                resp.json({
+                                    user,
+                                    success: true
+                                })
+                            } else {
+                                resp.json({
+                                    ...resultf.serviceResponse.authenticationFailure,
+                                    success : false
+                                })
+                            }
+                            
+                        })
+
+                    })
+                    r3.write("");
+                    r3.end();
+                })
+          })
+          // req error
+            req2.on('error', function (err) {
+                console.log(err);
+                throw Error(err);
+            });
+
+            req2.write(postData2);
+            req2.end();
+        });
+    })
+
+    // req error
+    req1.on('error', function (err) {
+        console.log(err);
+        throw Error(err);
+    });
+
+    req1.write(postData);
+    req1.end();
+}
+
 /**
  * Logout the currently logged in CAS user.
  */
@@ -267,17 +383,22 @@ CASAuthentication.prototype.logout = function(req, res, next) {
 
     // Destroy the entire session if the option is set.
     if (this.destroy_session) {
-        req.session.destroy(function(err) {
-            if (err) {
-                console.log(err);
-            }
-        });
+        if(req.session.destroy) {
+            req.session.destroy(function(err) {
+                if (err) {
+                    console.log(err);
+                }
+            });
+        } else {
+            req.session[ this.session_name ] = null;
+            req.session = null;
+        }
     }
     // Otherwise, just destroy the CAS session variables.
     else {
         delete req.session[ this.session_name ];
         if (this.session_info) {
-          delete req.session[ this.session_info ];
+            delete req.session[ this.session_info ];
         }
     }
 
@@ -308,18 +429,18 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
     else if (this.cas_version === 'saml1.1'){
         var now = new Date();
         var post_data = '<?xml version="1.0" encoding="utf-8"?>\n' +
-                        '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">\n' +
-                        '  <SOAP-ENV:Header/>\n' +
-                        '  <SOAP-ENV:Body>\n' +
-                        '    <samlp:Request xmlns:samlp="urn:oasis:names:tc:SAML:1.0:protocol" MajorVersion="1"\n' +
-                        '      MinorVersion="1" RequestID="_' + req.host + '.' + now.getTime() + '"\n' +
-                        '      IssueInstant="' + now.toISOString() + '">\n' +
-                        '      <samlp:AssertionArtifact>\n' +
-                        '        ' + req.query.ticket + '\n' +
-                        '      </samlp:AssertionArtifact>\n' +
-                        '    </samlp:Request>\n' +
-                        '  </SOAP-ENV:Body>\n' +
-                        '</SOAP-ENV:Envelope>';
+            '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">\n' +
+            '  <SOAP-ENV:Header/>\n' +
+            '  <SOAP-ENV:Body>\n' +
+            '    <samlp:Request xmlns:samlp="urn:oasis:names:tc:SAML:1.0:protocol" MajorVersion="1"\n' +
+            '      MinorVersion="1" RequestID="_' + req.host + '.' + now.getTime() + '"\n' +
+            '      IssueInstant="' + now.toISOString() + '">\n' +
+            '      <samlp:AssertionArtifact>\n' +
+            '        ' + req.query.ticket + '\n' +
+            '      </samlp:AssertionArtifact>\n' +
+            '    </samlp:Request>\n' +
+            '  </SOAP-ENV:Body>\n' +
+            '</SOAP-ENV:Envelope>';
 
         requestOptions.method = 'POST';
         requestOptions.path = url.format({
