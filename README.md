@@ -14,12 +14,12 @@ It also provides two route endpoint functions:
 
 ## Installation
 
-    npm install cas-authentication
+    npm install node-cas-authentication
 
 ## Setup
 
 ```javascript
-var CASAuthentication = require('cas-authentication');
+var CASAuthentication = require('node-cas-authentication');
 
 var cas = new CASAuthentication({
     cas_url         : 'https://my-cas-host.com/cas',
@@ -27,10 +27,12 @@ var cas = new CASAuthentication({
     cas_version     : '3.0',
     renew           : false,
     is_dev_mode     : false,
-    dev_mode_user   : ''
+    dev_mode_user   : '',
+    dev_mode_info   : {},
     session_name    : 'cas_user',
     session_info    : 'cas_userinfo',
-    destroy_session : false
+    destroy_session : false,
+    return_to       : 'https://my-website.com/'
 });
 ```
 
@@ -40,20 +42,23 @@ var cas = new CASAuthentication({
 |:-----|:----:|:------------|:-------:|
 | cas_url | _string_ | The URL of the CAS server. | _(required)_ |
 | service_url | _string_ | The URL of the application which is registered with the CAS server as a valid service. | _(required)_ |
-| cas_version | _"1.0"\|"2.0\|"3.0"\|"saml1.1"_ | The CAS protocol version. | _"3.0"_ |
+| cas_version | _"1.0"\|"2.0"\|"3.0"\|"saml1.1"_ | The CAS protocol version. | _"3.0"_ |
+| cas_port | _number_ | The port of the CAS server if different than the default. | 443 |
 | renew | _boolean_ | If true, an unauthenticated client will be required to login to the CAS system regardless of whether a single sign-on session exists. | _false_ |
 | is_dev_mode | _boolean_ | If true, no CAS authentication will be used and the session CAS variable will be set to whatever user is specified as _dev_mode_user_. | _false_ |
 | dev_mode_user | _string_ | The CAS user to use if dev mode is active. | _""_ |
+| dev_mode_info | _Object_ | The CAS user information to use if dev mode is active. | _{}_ |
 | session_name | _string_ | The name of the session variable that will store the CAS user once they are authenticated. | _"cas_user"_ |
 | session_info | _string_ | The name of the session variable that will store the CAS user information once they are authenticated. If set to false (or something that evaluates as false), the additional information supplied by the CAS will not be forwarded. This will not work with CAS 1.0, as it does not support additional user information. | _false_ |
 | destroy_session | _boolean_ | If true, the logout function will destroy the entire session upon CAS logout. Otherwise, it will only delete the session variable storing the CAS user. | _false_ |
+| return_to | _string_ | redirect to this url after successfull login  | "" |
 
 ## Usage
 
 ```javascript
 var app = require('express')();
 var session = require('express-session');
-var CASAuthentication = require('cas-authentication');
+var CASAuthentication = require('node-cas-authentication');
 
 // Set up an Express session, which is required for CASAuthentication.
 app.use( session({
