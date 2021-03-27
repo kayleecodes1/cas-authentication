@@ -19,9 +19,11 @@ var AUTH_TYPE = {
  * @property {string}  cas_url
  * @property {string}  service_url
  * @property {('1.0'|'2.0'|'3.0'|'saml1.1')} [cas_version='3.0']
+ * @property {number} [cas_port=443]
  * @property {boolean} [renew=false]
  * @property {boolean} [is_dev_mode=false]
  * @property {string}  [dev_mode_user='']
+ * @property {Object}  [dev_mode_info={}]
  * @property {string}  [session_name='cas_user']
  * @property {string}  [session_info=false]
  * @property {boolean} [destroy_session=false]
@@ -42,6 +44,8 @@ function CASAuthentication(options) {
     if (options.service_url === undefined) {
         throw new Error( 'CAS Authentication requires a service_url parameter.');
     }
+
+    this.cas_port = options.cas_port ? options.cas_port : 443;
 
     this.cas_version = options.cas_version !== undefined ? options.cas_version : '3.0';
 
@@ -101,34 +105,35 @@ function CASAuthentication(options) {
                 explicitArray: false,
                 tagNameProcessors: [ XMLprocessors.normalize, XMLprocessors.stripPrefix ]
             }, function(err, result) {
-                if(err) {
+                if (err) {
                     return callback(new Error('Response from CAS server was bad.'));
                 }
                 try {
                     var samlResponse = result.envelope.body.response;
-                    var success = samlResponse.status.statuscode.$.Value.split(':')[1];
-                    if(success !== 'Success'){
-                        return callback(new Error('CAS authentication failed (' + result.status.statuscode.$.Value + ').'));
-                    }
-                    if(success === 'Success'){
-                        var attributes = {};
-
-                        samlResponse.assertion.attributestatement.attribute.forEach(function( attr ){
-                            var thisAttrValue;
-                            if(attr.attributevalue instanceof Array){
-                                thisAttrValue = [];
-                                attr.attributevalue.forEach(function( v ) {
-                                    thisAttrValue.push(v._);
-                                });
-                            } else {
-                                thisAttrValue = attr.attributevalue._;
-                            }
-                            attributes[attr.$.AttributeName] = thisAttrValue;
-                        });
-                        return callback(null, samlResponse.assertion.authenticationstatement.subject.nameidentifier, attributes);
+                    var success = samlResponse.status.statuscode.$.Value.split(':')[ 1 ];
+                    if (success !== 'Success') {
+                        return callback(new Error('CAS authentication failed (' + success + ').'));
                     }
                     else {
-                        return callback(new Error( 'CAS authentication failed.'));
+                        var attributes = {};
+                        var attributesArray = samlResponse.assertion.attributestatement.attribute;
+                        if (!(attributesArray instanceof Array)) {
+                            attributesArray = [ attributesArray ];
+                        }
+                        attributesArray.forEach(function(attr){
+                            var thisAttrValue;
+                            if (attr.attributevalue instanceof Array){
+                                thisAttrValue = [];
+                                attr.attributevalue.forEach(function(v) {
+                                    thisAttrValue.push(v._);
+                                });
+                            }
+                            else {
+                                thisAttrValue = attr.attributevalue._;
+                            }
+                            attributes[ attr.$.AttributeName ] = thisAttrValue;
+                        });
+                        return callback(null, samlResponse.assertion.authenticationstatement.subject.nameidentifier, attributes);
                     }
                 }
                 catch (err) {
@@ -146,18 +151,20 @@ function CASAuthentication(options) {
     var parsed_cas_url   = url.parse(this.cas_url);
     this.request_client  = parsed_cas_url.protocol === 'http:' ? http : https;
     this.cas_host        = parsed_cas_url.hostname;
-    this.cas_port        = parsed_cas_url.protocol === 'http:' ? 80 : 443;
     this.cas_path        = parsed_cas_url.pathname;
+    this.return_to       = options.return_to;
 
     this.service_url     = options.service_url;
+    this.service_url_for_api = options.service_url_for_api;
 
     this.renew           = options.renew !== undefined ? !!options.renew : false;
 
     this.is_dev_mode     = options.is_dev_mode !== undefined ? !!options.is_dev_mode : false;
     this.dev_mode_user   = options.dev_mode_user !== undefined ? options.dev_mode_user : '';
+    this.dev_mode_info   = options.dev_mode_info !== undefined ? options.dev_mode_info : {};
 
     this.session_name    = options.session_name !== undefined ? options.session_name : 'cas_user';
-    this.session_info    = ['2.0', '3.0', 'saml1.1'].indexOf(this.cas_version) >= 0 && options.session_info !== undefined ? options.session_info : false ;
+    this.session_info    = [ '2.0', '3.0', 'saml1.1' ].indexOf(this.cas_version) >= 0 && options.session_info !== undefined ? options.session_info : false;
     this.destroy_session = options.destroy_session !== undefined ? !!options.destroy_session : false;
 
     // Bind the prototype routing methods to this instance of CASAuthentication.
@@ -218,6 +225,7 @@ CASAuthentication.prototype._handle = function(req, res, next, authType) {
     // If dev mode is active, set the CAS user to the specified dev user.
     else if (this.is_dev_mode) {
         req.session[ this.session_name ] = this.dev_mode_user;
+        req.session[ this.session_info ] = this.dev_mode_info;
         next();
     }
     // If the authentication type is BLOCK, simply send a 401 response.
@@ -241,7 +249,7 @@ CASAuthentication.prototype._login = function(req, res, next) {
 
     // Save the return URL in the session. If an explicit return URL is set as a
     // query parameter, use that. Otherwise, just use the URL from the request.
-    req.session.cas_return_to = req.query.returnTo || url.parse(req.url).path;
+    req.session.cas_return_to = req.query.returnTo || this.return_to || url.parse(req.url).path;
 
     // Set up the query parameters.
     var query = {
@@ -256,6 +264,118 @@ CASAuthentication.prototype._login = function(req, res, next) {
     }));
 };
 
+CASAuthentication.prototype._apiLogin = function(req, resp, next) {
+    var querystring = require('querystring');
+    var postData = querystring.stringify({
+        username: encodeURIComponent(req.body.username),
+        password: encodeURIComponent(req.body.password)
+    })
+
+    
+    var requestOptions = {
+        host: this.cas_host,
+        port: this.cas_port,
+        path: this.cas_path+"/v1/tickets",
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          }
+    };
+
+    var req1 = this.request_client.request(requestOptions, (res) => {
+        var result = '';
+        res.on('data', function (chunk) {
+          result += chunk;
+        });
+        res.on('end', () => {
+            if(res.headers.location === undefined) {
+                return resp.json({
+                    ...JSON.parse(result),
+                    success : false
+                })
+            }
+            var arr = res.headers.location.split("/");
+            var tgt = arr[arr.length - 1];
+
+            var postData2 = querystring.stringify({
+                service: this.service_url_for_api,
+            })
+
+            var requestOptions2 = {
+                host: this.cas_host,
+                port: this.cas_port,
+                path: this.cas_path+"/v1/tickets/"+tgt,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            } 
+            var req2 = this.request_client.request(requestOptions2, (res) => {
+                var resultw = '';
+                res.on('data', function (chunk) {
+                    resultw += chunk;
+                });
+
+                res.on('end',  () => {
+                    req.query = {}
+                    req.query.ticket = resultw;
+                    var ss = encodeURI(this.service_url_for_api)
+                    var r3 = this.request_client.request({
+                        host: 'muerp1.mu-sigma.com',
+                        port: 443,
+                        method: 'GET',
+                        path: `/cas/p3/serviceValidate?service=${ss}&ticket=${resultw}&format=json`
+                    }, (res3) => {
+                        var resultf = '';
+                        res3.on('data', function (chunk) {
+                            resultf += chunk;
+                        });
+
+                        res3.on('end',  () => {
+                            resultf = JSON.parse(resultf)
+                            var user;
+                            if(resultf.serviceResponse.authenticationSuccess) {
+                                user = resultf.serviceResponse.authenticationSuccess.user;
+                                req.session[ this.session_name ] = user;
+                                resp.json({
+                                    user,
+                                    success: true
+                                })
+                            } else {
+                                resp.json({
+                                    ...resultf.serviceResponse.authenticationFailure,
+                                    success : false
+                                })
+                            }
+                            
+                        })
+
+                    })
+                    r3.write("");
+                    r3.end();
+                })
+          })
+          // req error
+            req2.on('error', function (err) {
+                console.log(err);
+                throw Error(err);
+            });
+
+            req2.write(postData2);
+            req2.end();
+        });
+    })
+
+    // req error
+    req1.on('error', function (err) {
+        console.log(err);
+        throw Error(err);
+    });
+
+    req1.write(postData);
+    req1.end();
+}
+
 /**
  * Logout the currently logged in CAS user.
  */
@@ -263,17 +383,22 @@ CASAuthentication.prototype.logout = function(req, res, next) {
 
     // Destroy the entire session if the option is set.
     if (this.destroy_session) {
-        req.session.destroy(function(err) {
-            if (err) {
-                console.log(err);
-            }
-        });
+        if(req.session.destroy) {
+            req.session.destroy(function(err) {
+                if (err) {
+                    console.log(err);
+                }
+            });
+        } else {
+            req.session[ this.session_name ] = null;
+            req.session = null;
+        }
     }
     // Otherwise, just destroy the CAS session variables.
     else {
         delete req.session[ this.session_name ];
         if (this.session_info) {
-          delete req.session[ this.session_info ];
+            delete req.session[ this.session_info ];
         }
     }
 
@@ -289,7 +414,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
     var requestOptions = {
         host: this.cas_host,
         port: this.cas_port,
-    }
+    };
 
     if (['1.0', '2.0', '3.0'].indexOf(this.cas_version) >= 0){
         requestOptions.method = 'GET';
@@ -300,21 +425,23 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
                 ticket: req.query.ticket
             }
         });
-    } else if (this.cas_version === 'saml1.1'){
+
+    }
+    else if (this.cas_version === 'saml1.1'){
         var now = new Date();
         var post_data = '<?xml version="1.0" encoding="utf-8"?>\n' +
-                        '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">\n' +
-                        '  <SOAP-ENV:Header/>\n' +
-                        '  <SOAP-ENV:Body>\n' +
-                        '    <samlp:Request xmlns:samlp="urn:oasis:names:tc:SAML:1.0:protocol" MajorVersion="1"\n' +
-                        '      MinorVersion="1" RequestID="_' + req.host + '.' + now.getTime() + '"\n' +
-                        '      IssueInstant="' + now.toISOString() + '">\n' +
-                        '      <samlp:AssertionArtifact>\n' +
-                        '        ' + req.query.ticket + '\n' +
-                        '      </samlp:AssertionArtifact>\n' +
-                        '    </samlp:Request>\n' +
-                        '  </SOAP-ENV:Body>\n' +
-                        '</SOAP-ENV:Envelope>';
+            '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">\n' +
+            '  <SOAP-ENV:Header/>\n' +
+            '  <SOAP-ENV:Body>\n' +
+            '    <samlp:Request xmlns:samlp="urn:oasis:names:tc:SAML:1.0:protocol" MajorVersion="1"\n' +
+            '      MinorVersion="1" RequestID="_' + req.host + '.' + now.getTime() + '"\n' +
+            '      IssueInstant="' + now.toISOString() + '">\n' +
+            '      <samlp:AssertionArtifact>\n' +
+            '        ' + req.query.ticket + '\n' +
+            '      </samlp:AssertionArtifact>\n' +
+            '    </samlp:Request>\n' +
+            '  </SOAP-ENV:Body>\n' +
+            '</SOAP-ENV:Envelope>';
 
         requestOptions.method = 'POST';
         requestOptions.path = url.format({
@@ -325,9 +452,9 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
             }
         });
         requestOptions.headers = {
-            'Content-Type' : 'text/xml',
+            'Content-Type': 'text/xml',
             'Content-Length': Buffer.byteLength(post_data)
-        }
+        };
     }
 
     var request = this.request_client.request(requestOptions, function(response) {
